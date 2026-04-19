@@ -12,15 +12,21 @@ let genAIInstance: GoogleGenAI | null = null;
 function getGenAI() {
   if (!genAIInstance) {
     const key = process.env.GEMINI_API_KEY;
-    if (!key || key === "YOUR_API_KEY_HERE") {
-      throw new Error("SERVER_ERROR: GEMINI_API_KEY environment variable is missing.");
+    if (!key || key === "YOUR_API_KEY_HERE" || key === "GEMINI_API_KEY") {
+      throw new Error("SERVER_ERROR: GEMINI_API_KEY is not set correctly in Cloud Run variables.");
     }
     
-    // ULTRA CLEAN: Remove quotes, newlines, spaces, and any non-alphanumeric characters except basic hyphen/underscore
-    // This handles the common mistake of pasting "API_KEY" with literal quotes in Cloud Run
+    // ULTRA CLEAN: Remove all possible garbage characters
     const cleanKey = key.replace(/['"\s\n\r\t]/g, "").trim();
     
-    console.log(`[MediScan] Initializing GenAI with key length: ${cleanKey.length}`);
+    // Safety check: Most Google API keys start with 'AIza'
+    if (!cleanKey.startsWith("AIza")) {
+       console.warn("[MediScan] Warning: API key does not start with typical 'AIza' prefix. Check for typos.");
+    }
+
+    const keyPreview = `${cleanKey.substring(0, 4)}...${cleanKey.substring(cleanKey.length - 4)}`;
+    console.log(`[MediScan] Initializing GenAI with key: ${keyPreview} (Length: ${cleanKey.length})`);
+    
     genAIInstance = new GoogleGenAI({ apiKey: cleanKey });
   }
   return genAIInstance;
