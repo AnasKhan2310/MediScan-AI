@@ -78,26 +78,37 @@ async function startServer() {
 
     try {
       const genAI = getGenAI();
-      const modelName = "gemini-3-flash-preview";
+      // Use Gemini 3.1 Pro for better medical reasoning
+      const modelName = "gemini-3.1-pro-preview";
+
+      const promptText = mode === 'report' 
+        ? SYSTEM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}.` 
+        : SYMPTOM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}. Symptoms: ${symptoms}.`;
 
       const response = await genAI.models.generateContent({
         model: modelName,
-        contents: [
-          mode === 'report' ? SYSTEM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}.` : SYMPTOM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}. Symptoms: ${symptoms}.`,
-          ...(mode === 'report' ? [{
-            inlineData: {
-              data: image,
-              mimeType: "image/jpeg"
-            }
-          }] : [])
-        ],
+        contents: {
+          parts: [
+            { text: promptText },
+            ...(mode === 'report' ? [{
+              inlineData: {
+                data: image,
+                mimeType: "image/jpeg"
+              }
+            }] : [])
+          ]
+        }
       });
 
       const text = response.text;
       res.json({ analysis: text });
     } catch (error: any) {
-      console.error("Analysis Error:", error);
-      res.status(500).json({ error: error.message || "Internal server error during analysis." });
+      console.error("ANALYSIS_SERVER_ERROR:", error);
+      // Send the clear error message to frontend
+      res.status(500).json({ 
+        error: error.message || "Unknown server error",
+        details: error.response?.data || error.stack
+      });
     }
   });
 

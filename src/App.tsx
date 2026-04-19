@@ -118,7 +118,7 @@ export default function App() {
       }
     } catch (err: any) {
       console.error(err);
-      setError('Analysis failed. Please try again with a clearer image or description.');
+      setError(err.message || 'Analysis failed. Please try again with a clearer image or description.');
     } finally {
       setIsAnalyzing(false);
     }
