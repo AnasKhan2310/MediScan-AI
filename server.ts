@@ -13,10 +13,14 @@ function getGenAI() {
   if (!genAIInstance) {
     const key = process.env.GEMINI_API_KEY;
     if (!key || key === "YOUR_API_KEY_HERE") {
-      throw new Error("SERVER_ERROR: GEMINI_API_KEY is missing or invalid in environment variables.");
+      throw new Error("SERVER_ERROR: GEMINI_API_KEY environment variable is missing.");
     }
-    // Deep clean the key - remove all whitespace, newlines, or potential hidden characters
-    const cleanKey = key.trim().replace(/[\n\r\s\t]/g, "");
+    
+    // ULTRA CLEAN: Remove quotes, newlines, spaces, and any non-alphanumeric characters except basic hyphen/underscore
+    // This handles the common mistake of pasting "API_KEY" with literal quotes in Cloud Run
+    const cleanKey = key.replace(/['"\s\n\r\t]/g, "").trim();
+    
+    console.log(`[MediScan] Initializing GenAI with key length: ${cleanKey.length}`);
     genAIInstance = new GoogleGenAI({ apiKey: cleanKey });
   }
   return genAIInstance;
