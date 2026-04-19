@@ -135,7 +135,7 @@ export default function App() {
           <header className="bg-teal-600 px-6 sm:px-10 py-5 sm:py-7 text-white flex justify-between items-center shrink-0 shadow-lg">
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20">
-                <Activity className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                <Stethoscope className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
               <div>
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight m-0 uppercase italic leading-none">MediScan <span className="text-teal-200">AI</span></h1>

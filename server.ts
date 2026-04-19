@@ -129,17 +129,25 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
-  // Serve static files in production
+  // Serve static files
   const isProduction = process.env.NODE_ENV === "production" || process.env.K_SERVICE !== undefined;
+  const distPath = path.resolve(process.cwd(), 'dist');
 
-  if (!isProduction) {
+  // We check if the dist directory actually exists before assuming production serving
+  const fs = await import("fs");
+  const hasDist = fs.existsSync(distPath);
+
+  if (!isProduction || !hasDist) {
+    if (isProduction && !hasDist) {
+      console.warn("Production mode detected but 'dist' folder is missing. Falling back to Vite middleware...");
+    }
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.resolve(__dirname, 'dist');
+    console.log(`Serving static files from: ${distPath}`);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
