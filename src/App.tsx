@@ -95,30 +95,93 @@ export default function App() {
     setError(null);
 
     try {
-      const payload: any = {
-        mode,
-        patientAge,
-        symptoms: mode === 'symptom' ? symptoms : undefined,
-        image: mode === 'report' ? preview!.split(',')[1] : undefined
-      };
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey || apiKey === "YOUR_API_KEY_HERE" || apiKey === "GEMINI_API_KEY") {
+        throw new Error("MediScan AI: API Key is missing. Please set GEMINI_API_KEY in your environment.");
+      }
 
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const { GoogleGenAI } = await import("@google/genai");
+      const cleanKey = apiKey.replace(/['"\s\n\r\t]/g, "").trim();
+      const ai = new GoogleGenAI({ apiKey: cleanKey });
+
+      const SYSTEM_PROMPT = `You are MediScan AI, a high-precision medical analysis system.
+Your mission is to provide clinical analysis of medical documents.
+
+### STANDARDS:
+1. **Document Fidelity**: Extract all markers accurately.
+2. **Clinical Standards**: Compare against international norms.
+3. **Professional Triage**: Categorize results by urgency.
+
+### RESPONSE FORMAT:
+# 📊 CLINICAL SUMMARY
+**TYPE:** [TYPE]
+[Professional clinical overview]
+
+# 🔍 EXTRACTED DATA
+| Marker | Value | Status | Reference |
+|---|---|---|---|
+| [Name] | [Value] | **[STATUS]** | [Range] |
+
+# 💡 CLINICAL INSIGHTS
+- [Insight]
+
+# 👨‍⚕️ SPECIALIST REFERRAL
+[Recommended Specialist]
+
+# ⚠️ LEGAL DISCLAIMER
+Automated analysis. Not a diagnosis. Consult a physician.`;
+
+      const SYMPTOM_PROMPT = `You are MediScan AI, an advanced symptom guidance system.
+Analyze symptoms with clinical rigor and provide triage guidance.
+
+### OBJECTIVES:
+1. **Conditions**: List 3 likely conditions with probabilities.
+2. **Urgency**: Grade as CRITICAL, URGENT, or ROUTINE.
+
+### FORMAT:
+# 🩺 DIFFERENTIAL GUIDANCE
+[Findings]
+
+# 🚨 CRITICAL RED FLAGS
+[Warnings]
+
+# 🏥 INTERVENTION PATH
+[Triage]`;
+
+      const promptText = mode === 'report' 
+        ? SYSTEM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}.` 
+        : SYMPTOM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}. Symptoms: ${symptoms}.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: {
+          parts: [
+            { text: promptText },
+            ...(mode === 'report' ? [{
+              inlineData: {
+                data: preview!.split(',')[1],
+                mimeType: file?.type || "image/jpeg"
+              }
+            }] : [])
+          ]
+        }
       });
 
-      const result = await response.json();
-
-      if (result.analysis) {
-        setAnalysis(result.analysis);
-        saveToHistory(mode === 'report' ? 'Report Analysis' : 'Symptom Screening', result.analysis);
+      const text = response.text;
+      if (text) {
+        setAnalysis(text);
+        saveToHistory(mode === 'report' ? 'Report Analysis' : 'Symptom Screening', text);
       } else {
-        throw new Error(result.error || 'Analysis failed.');
+        throw new Error("No analysis generated. Please try a different image or description.");
       }
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Analysis failed. Please try again with a clearer image or description.');
+      console.error("ANALYSIS_ERROR:", err);
+      // Clean up common technical error messages for the user
+      let userMessage = err.message || 'Analysis failed. Please try again.';
+      if (userMessage.includes("API key not valid")) {
+        userMessage = "API Key Error: Your API key is being rejected by Google. Please check your Cloud Run variables and ensure the key has no spaces or quotes.";
+      }
+      setError(userMessage);
     } finally {
       setIsAnalyzing(false);
     }
