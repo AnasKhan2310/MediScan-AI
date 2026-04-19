@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { 
@@ -24,53 +23,6 @@ import {
   Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-// Initialize Gemini API
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-const SYSTEM_PROMPT = `You are MediScan AI, a high-precision medical analysis system.
-Your mission is to provide clinical analysis of medical documents.
-
-### STANDARDS:
-1. **Document Fidelity**: Extract all markers accurately.
-2. **Clinical Standards**: Compare against international norms.
-3. **Professional Triage**: Categorize results by urgency.
-
-### RESPONSE FORMAT:
-# 📊 CLINICAL SUMMARY
-**TYPE:** [TYPE]
-[Professional clinical overview]
-
-# 🔍 EXTRACTED DATA
-| Marker | Value | Status | Reference |
-|---|---|---|---|
-| [Name] | [Value] | **[STATUS]** | [Range] |
-
-# 💡 CLINICAL INSIGHTS
-- [Insight]
-
-# 👨‍⚕️ SPECIALIST REFERRAL
-[Recommended Specialist]
-
-# ⚠️ LEGAL DISCLAIMER
-Automated analysis. Not a diagnosis. Consult a physician.`;
-
-const SYMPTOM_PROMPT = `You are MediScan AI, an advanced symptom guidance system.
-Analyze symptoms with clinical rigor and provide triage guidance.
-
-### OBJECTIVES:
-1. **Conditions**: List 3 likely conditions with probabilities.
-2. **Urgency**: Grade as CRITICAL, URGENT, or ROUTINE.
-
-### FORMAT:
-# 🩺 DIFFERENTIAL GUIDANCE
-[Findings]
-
-# 🚨 CRITICAL RED FLAGS
-[Warnings]
-
-# 🏥 INTERVENTION PATH
-[Triage]`;
 
 export default function App() {
   const [mode, setMode] = useState<'report' | 'symptom'>('report');
@@ -143,39 +95,26 @@ export default function App() {
     setError(null);
 
     try {
-      let contents: any = {};
-      
-      if (mode === 'report') {
-        const base64Data = preview!.split(',')[1];
-        contents = {
-          parts: [
-            { text: SYSTEM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}.` },
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: file?.type || 'image/jpeg'
-              }
-            }
-          ]
-        };
-      } else {
-        contents = {
-          parts: [
-            { text: SYMPTOM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}. Symptoms: ${symptoms}.` }
-          ]
-        };
-      }
+      const payload: any = {
+        mode,
+        patientAge,
+        symptoms: mode === 'symptom' ? symptoms : undefined,
+        image: mode === 'report' ? preview!.split(',')[1] : undefined
+      };
 
-      const response = await genAI.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents,
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      if (response.text) {
-        setAnalysis(response.text);
-        saveToHistory(mode === 'report' ? 'Report Analysis' : 'Symptom Screening', response.text);
+      const result = await response.json();
+
+      if (result.analysis) {
+        setAnalysis(result.analysis);
+        saveToHistory(mode === 'report' ? 'Report Analysis' : 'Symptom Screening', result.analysis);
       } else {
-        throw new Error('Analysis failed.');
+        throw new Error(result.error || 'Analysis failed.');
       }
     } catch (err: any) {
       console.error(err);
