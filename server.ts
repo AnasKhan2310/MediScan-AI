@@ -105,7 +105,14 @@ async function startServer() {
     app.get('*', (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
+        // Read index.html and inject the API key so the frontend can access it at runtime
+        let html = fs.readFileSync(indexPath, 'utf-8');
+        const envConfig = {
+          GEMINI_API_KEY: process.env.GEMINI_API_KEY || ''
+        };
+        const scriptInjection = `<script>window.ENV = ${JSON.stringify(envConfig)};</script>`;
+        html = html.replace('<head>', `<head>${scriptInjection}`);
+        res.send(html);
       } else {
         res.status(404).send("MediScan ERROR: dist/index.html not found. Please run 'npm run build'.");
       }
