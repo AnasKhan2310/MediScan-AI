@@ -7,8 +7,18 @@ import { GoogleGenAI } from "@google/genai";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Gemini AI (Backend Only)
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// Lazy initialize Gemini (to avoid issues if env var loads late)
+let genAIInstance: GoogleGenAI | null = null;
+function getGenAI() {
+  if (!genAIInstance) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key || key === "YOUR_API_KEY_HERE") {
+      throw new Error("SERVER_ERROR: GEMINI_API_KEY is missing or invalid in environment variables.");
+    }
+    genAIInstance = new GoogleGenAI({ apiKey: key.trim() });
+  }
+  return genAIInstance;
+}
 
 const SYSTEM_PROMPT = `You are MediScan AI, a high-precision medical analysis system.
 Your mission is to provide clinical analysis of medical documents.
@@ -67,12 +77,11 @@ async function startServer() {
     const { mode, image, symptoms, patientAge } = req.body;
 
     try {
-      if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY is not configured on the server.");
-      }
+      const genAI = getGenAI();
+      const modelName = "gemini-3-flash-preview";
 
       const response = await genAI.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: modelName,
         contents: [
           mode === 'report' ? SYSTEM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}.` : SYMPTOM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}. Symptoms: ${symptoms}.`,
           ...(mode === 'report' ? [{
