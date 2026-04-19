@@ -14,6 +14,9 @@ COPY . .
 # Build the frontend
 RUN npm run build
 
+# Set production environment
+ENV NODE_ENV=production
+
 # Expose the port (Cloud Run defaults to 8080)
 EXPOSE 8080
 
