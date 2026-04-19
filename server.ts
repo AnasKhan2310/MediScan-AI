@@ -15,7 +15,9 @@ function getGenAI() {
     if (!key || key === "YOUR_API_KEY_HERE") {
       throw new Error("SERVER_ERROR: GEMINI_API_KEY is missing or invalid in environment variables.");
     }
-    genAIInstance = new GoogleGenAI({ apiKey: key.trim() });
+    // Deep clean the key - remove all whitespace, newlines, or potential hidden characters
+    const cleanKey = key.trim().replace(/[\n\r\s\t]/g, "");
+    genAIInstance = new GoogleGenAI({ apiKey: cleanKey });
   }
   return genAIInstance;
 }
@@ -78,8 +80,8 @@ async function startServer() {
 
     try {
       const genAI = getGenAI();
-      // Use Gemini 3.1 Pro for better medical reasoning
-      const modelName = "gemini-3.1-pro-preview";
+      // Using gemini-3-flash-preview for maximum compatibility and stability
+      const modelName = "gemini-3-flash-preview";
 
       const promptText = mode === 'report' 
         ? SYSTEM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}.` 
