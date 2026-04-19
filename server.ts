@@ -101,7 +101,8 @@ async function startServer() {
 
   if (isProduction && hasDist) {
     console.log(`[MediScan] Production Mode: Serving static files from ${distPath}`);
-    app.use(express.static(distPath));
+    // Disable automatic index.html serving to force our custom handler with injection
+    app.use(express.static(distPath, { index: false }));
     app.get('*', (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
@@ -112,9 +113,9 @@ async function startServer() {
         };
         const scriptInjection = `<script>window.ENV = ${JSON.stringify(envConfig)};</script>`;
         html = html.replace('<head>', `<head>${scriptInjection}`);
-        res.send(html);
+        res.status(200).setHeader('Content-Type', 'text/html').send(html);
       } else {
-        res.status(404).send("MediScan ERROR: dist/index.html not found. Please run 'npm run build'.");
+        res.status(404).send("MediScan ERROR: dist/index.html not found.");
       }
     });
   } else {
