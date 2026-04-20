@@ -23,6 +23,7 @@ import {
   Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleGenAI } from "@google/genai";
 
 export default function App() {
   const [mode, setMode] = useState<'report' | 'symptom'>('report');
@@ -102,7 +103,6 @@ export default function App() {
         throw new Error("MediScan AI: API Key is missing. Please set GEMINI_API_KEY in your Cloud Run revision environment variables.");
       }
 
-      const { GoogleGenAI } = await import("@google/genai");
       const cleanKey = apiKey.replace(/['"\s\n\r\t]/g, "").trim();
       const ai = new GoogleGenAI({ apiKey: cleanKey });
 
@@ -162,7 +162,7 @@ Analyze symptoms with clinical rigor and provide triage guidance.
       while (attempts < maxAttempts) {
         try {
           const response = await ai.models.generateContent({
-            model: "gemini-3-flash-latest", // Switching to 'latest' alias for better stability
+            model: "gemini-3-flash-preview", 
             contents: {
               parts: [
                 { text: promptText },

@@ -113,7 +113,9 @@ async function startServer() {
         };
         const scriptInjection = `<script>window.ENV = ${JSON.stringify(envConfig)};</script>`;
         html = html.replace('<head>', `<head>${scriptInjection}`);
-        res.status(200).setHeader('Content-Type', 'text/html').send(html);
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Content-Type', 'text/html');
+        res.status(200).send(html);
       } else {
         res.status(404).send("MediScan ERROR: dist/index.html not found.");
       }
