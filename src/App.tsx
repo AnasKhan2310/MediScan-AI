@@ -154,28 +154,50 @@ Analyze symptoms with clinical rigor and provide triage guidance.
         ? SYSTEM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}.` 
         : SYMPTOM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}. Symptoms: ${symptoms}.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: {
-          parts: [
-            { text: promptText },
-            ...(mode === 'report' ? [{
-              inlineData: {
-                data: preview!.split(',')[1],
-                mimeType: file?.type || "image/jpeg"
-              }
-            }] : [])
-          ]
-        }
-      });
+      // RETRY LOGIC for 503 Highly Demanded errors
+      let attempts = 0;
+      const maxAttempts = 3;
+      let lastError: any = null;
 
-      const text = response.text;
-      if (text) {
-        setAnalysis(text);
-        saveToHistory(mode === 'report' ? 'Report Analysis' : 'Symptom Screening', text);
-      } else {
-        throw new Error("No analysis generated. Please try a different image or description.");
+      while (attempts < maxAttempts) {
+        try {
+          const response = await ai.models.generateContent({
+            model: "gemini-3-flash-latest", // Switching to 'latest' alias for better stability
+            contents: {
+              parts: [
+                { text: promptText },
+                ...(mode === 'report' ? [{
+                  inlineData: {
+                    data: preview!.split(',')[1],
+                    mimeType: file?.type || "image/jpeg"
+                  }
+                }] : [])
+              ]
+            }
+          });
+
+          const text = response.text;
+          if (text) {
+            setAnalysis(text);
+            saveToHistory(mode === 'report' ? 'Report Analysis' : 'Symptom Screening', text);
+            return; // Success! Exit the function
+          }
+        } catch (err: any) {
+          lastError = err;
+          const isServiceUnavailable = err.message?.includes("503") || err.message?.includes("service is currently unavailable") || err.message?.includes("high demand");
+          
+          if (isServiceUnavailable && attempts < maxAttempts - 1) {
+            attempts++;
+            const delay = Math.pow(2, attempts) * 1000; // Exponential backoff: 2s, 4s
+            console.warn(`MediScan AI: Server busy. Retry attempt ${attempts} in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          break; // Not a 503 or max attempts reached
+        }
       }
+
+      throw lastError; // If we reach here, show the error
     } catch (err: any) {
       console.error("ANALYSIS_ERROR:", err);
       // Clean up common technical error messages for the user
