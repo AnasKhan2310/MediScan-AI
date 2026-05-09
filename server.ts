@@ -11,10 +11,8 @@ const __dirname = path.dirname(__filename);
 let genAIInstance: GoogleGenAI | null = null;
 function getGenAI() {
   if (!genAIInstance) {
-    const key = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "GEMINI_API_KEY" 
-      ? process.env.GEMINI_API_KEY 
-      : "AIzaSyCbml6PMhVqs9F_O5WV2aABEGRwpq2orh8";
-    if (!key) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key || key === "YOUR_API_KEY_HERE" || key === "GEMINI_API_KEY") {
       throw new Error("SERVER_ERROR: GEMINI_API_KEY is not set correctly. Please check your configuration.");
     }
     
@@ -111,9 +109,7 @@ async function startServer() {
         // Read index.html and inject the API key so the frontend can access it at runtime
         let html = fs.readFileSync(indexPath, 'utf-8');
         const envConfig = {
-          GEMINI_API_KEY: process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "GEMINI_API_KEY"
-            ? process.env.GEMINI_API_KEY
-            : "AIzaSyCbml6PMhVqs9F_O5WV2aABEGRwpq2orh8"
+          GEMINI_API_KEY: process.env.GEMINI_API_KEY || ''
         };
         const scriptInjection = `<script>window.ENV = ${JSON.stringify(envConfig)};</script>`;
         html = html.replace('<head>', `<head>${scriptInjection}`);

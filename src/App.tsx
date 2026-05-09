@@ -96,10 +96,10 @@ export default function App() {
     setError(null);
 
     try {
-      // Access the key: Priority to process.env/window.ENV, then the provided fallback key
-      const apiKey = (window as any).ENV?.GEMINI_API_KEY || process.env.GEMINI_API_KEY || "AIzaSyCbml6PMhVqs9F_O5WV2aABEGRwpq2orh8";
+      // Access the key from window.ENV (injected by server) or process.env (for dev)
+      const apiKey = (window as any).ENV?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
       
-      if (!apiKey) {
+      if (!apiKey || apiKey === "YOUR_API_KEY_HERE" || apiKey === "GEMINI_API_KEY") {
         throw new Error("MediScan AI: API Key is missing. Please set GEMINI_API_KEY in your Cloud Run revision environment variables.");
       }
 
