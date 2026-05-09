@@ -1,54 +1,17 @@
-# 🧠 MediScan AI – Smart Health Assistant
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-MediScan AI is an AI-powered healthcare assistant built using **Python + Streamlit + Gemini AI** that helps users understand their symptoms, get possible insights, and take informed next steps.
+# Run and deploy your AI Studio app
 
-🔗 Live App: https://mediscan-ai-29938184252.europe-west1.run.app/
+This contains everything you need to run your app locally.
 
----
+View your app in AI Studio: https://ai.studio/apps/4cee83a3-b583-450f-961e-b98ae4c88559
 
-## 🚀 Features
+## Run Locally
 
-- 🩺 Symptom Checker (AI-powered)
-- 💬 Chat-based health assistant
-- 🎤 Voice + Text + Image input support
-- 💊 Medicine guidance & side effects
-- 📍 Nearby clinic/pharmacy suggestions
-- ⚡ Real-time AI responses using Gemini
+**Prerequisites:**  Node.js
 
----
-
-## 🧠 How It Works
-
-1. User enters symptoms (text, voice, or image)
-2. AI analyzes input using Gemini model
-3. System provides:
-   - Possible condition insights
-   - Suggested actions (self-care / doctor visit)
-4. User gets simplified medical guidance
-
-👉 The app does NOT replace doctors — it only assists users.
-
----
-
-## 🛠️ Tech Stack
-
-- **Frontend:** Streamlit  
-- **Backend:** Python  
-- **AI Model:** Gemini API  
-- **Other Tools:**  
-  - Speech Recognition  
-  - Image Processing  
-  - APIs for location-based services  
-
----
-
-## 📦 Installation
-
-```bash
-git clone https://github.com/your-username/mediscan-ai.git
-cd mediscan-ai
-pip install -r requirements.txt
-streamlit run app.py
 
 1. Install dependencies:
    `npm install`
