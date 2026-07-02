@@ -23,7 +23,6 @@ import {
   Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
 
 export default function App() {
   const [mode, setMode] = useState<'report' | 'symptom'>('report');
@@ -96,114 +95,45 @@ export default function App() {
     setError(null);
 
     try {
-      // Access the key from window.ENV (injected by server) or process.env (for dev)
-      const apiKey = (window as any).ENV?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-      
-      if (!apiKey || apiKey === "YOUR_API_KEY_HERE" || apiKey === "GEMINI_API_KEY") {
-        throw new Error("MediScan AI: API Key is missing. Please set GEMINI_API_KEY in your Cloud Run revision environment variables.");
+      const fileData = mode === 'report' && preview ? preview.split(',')[1] : null;
+      const mimeType = mode === 'report' ? file?.type || "image/jpeg" : null;
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          mode,
+          patientAge,
+          symptoms,
+          fileData,
+          mimeType
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Server responded with status ${response.status}`);
       }
 
-      const cleanKey = apiKey.replace(/['"\s\n\r\t]/g, "").trim();
-      const ai = new GoogleGenAI({ apiKey: cleanKey });
-
-      const SYSTEM_PROMPT = `You are MediScan AI, a high-precision medical analysis system.
-Your mission is to provide clinical analysis of medical documents.
-
-### STANDARDS:
-1. **Document Fidelity**: Extract all markers accurately.
-2. **Clinical Standards**: Compare against international norms.
-3. **Professional Triage**: Categorize results by urgency.
-
-### RESPONSE FORMAT:
-# 📊 CLINICAL SUMMARY
-**TYPE:** [TYPE]
-[Professional clinical overview]
-
-# 🔍 EXTRACTED DATA
-| Marker | Value | Status | Reference |
-|---|---|---|---|
-| [Name] | [Value] | **[STATUS]** | [Range] |
-
-# 💡 CLINICAL INSIGHTS
-- [Insight]
-
-# 👨‍⚕️ SPECIALIST REFERRAL
-[Recommended Specialist]
-
-# ⚠️ LEGAL DISCLAIMER
-Automated analysis. Not a diagnosis. Consult a physician.`;
-
-      const SYMPTOM_PROMPT = `You are MediScan AI, an advanced symptom guidance system.
-Analyze symptoms with clinical rigor and provide triage guidance.
-
-### OBJECTIVES:
-1. **Conditions**: List 3 likely conditions with probabilities.
-2. **Urgency**: Grade as CRITICAL, URGENT, or ROUTINE.
-
-### FORMAT:
-# 🩺 DIFFERENTIAL GUIDANCE
-[Findings]
-
-# 🚨 CRITICAL RED FLAGS
-[Warnings]
-
-# 🏥 INTERVENTION PATH
-[Triage]`;
-
-      const promptText = mode === 'report' 
-        ? SYSTEM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}.` 
-        : SYMPTOM_PROMPT + ` Patient Age: ${patientAge || 'unspecified'}. Symptoms: ${symptoms}.`;
-
-      // RETRY LOGIC for 503 Highly Demanded errors
-      let attempts = 0;
-      const maxAttempts = 3;
-      let lastError: any = null;
-
-      while (attempts < maxAttempts) {
-        try {
-          const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview", 
-            contents: {
-              parts: [
-                { text: promptText },
-                ...(mode === 'report' ? [{
-                  inlineData: {
-                    data: preview!.split(',')[1],
-                    mimeType: file?.type || "image/jpeg"
-                  }
-                }] : [])
-              ]
-            }
-          });
-
-          const text = response.text;
-          if (text) {
-            setAnalysis(text);
-            saveToHistory(mode === 'report' ? 'Report Analysis' : 'Symptom Screening', text);
-            return; // Success! Exit the function
-          }
-        } catch (err: any) {
-          lastError = err;
-          const isServiceUnavailable = err.message?.includes("503") || err.message?.includes("service is currently unavailable") || err.message?.includes("high demand");
-          
-          if (isServiceUnavailable && attempts < maxAttempts - 1) {
-            attempts++;
-            const delay = Math.pow(2, attempts) * 1000; // Exponential backoff: 2s, 4s
-            console.warn(`MediScan AI: Server busy. Retry attempt ${attempts} in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
-          }
-          break; // Not a 503 or max attempts reached
-        }
+      const data = await response.json();
+      const text = data.text;
+      if (text) {
+        setAnalysis(text);
+        saveToHistory(mode === 'report' ? 'Report Analysis' : 'Symptom Screening', text);
+        return;
+      } else {
+        throw new Error("No analysis text returned from server.");
       }
-
-      throw lastError; // If we reach here, show the error
     } catch (err: any) {
       console.error("ANALYSIS_ERROR:", err);
       // Clean up common technical error messages for the user
       let userMessage = err.message || 'Analysis failed. Please try again.';
       if (userMessage.includes("API key not valid")) {
-        userMessage = "API Key Error: Your API key is being rejected by Google. Please check your Cloud Run variables and ensure the key has no spaces or quotes.";
+        userMessage = "API Key Error: Your API key is being rejected by Google. Please check your Vercel or Cloud Run variables and ensure the key has no spaces or quotes.";
+      } else if (userMessage.includes("API KEY NOT FOUND") || userMessage.includes("API key not found") || userMessage.includes("API_KEY_INVALID") || userMessage.includes("403") || userMessage.includes("400")) {
+        userMessage = "API Key Configuration Required: The GEMINI_API_KEY environment variable is not found or is misconfigured. Please check your platform environment variables.";
       }
       setError(userMessage);
     } finally {
